@@ -23,6 +23,8 @@ from result_writer import write_results_docx
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Literal
 import threading
+import json
+from docx_reader import ParsedDocument, DateHeading
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
@@ -45,15 +47,20 @@ def get_parsed_document(murli_key: str):
     if murli_key in _parsed_cache:
         return _parsed_cache[murli_key]
     with _cache_lock:
-        if murli_key in _parsed_cache:          # re-check after acquiring lock
+        if murli_key in _parsed_cache:
             return _parsed_cache[murli_key]
-        file_path = MURLI_FILES[murli_key]
-        if not os.path.isfile(file_path):
-            raise HTTPException(
-                status_code=500,
-                detail=f"Server data file missing: {os.path.basename(file_path)}",
-            )
-        parsed = parse_docx(file_path, MURLI_TYPE_LABEL[murli_key])
+        cache_path = os.path.join(DATA_DIR, f"{murli_key}_cache.json")
+        if not os.path.isfile(cache_path):
+            raise HTTPException(status_code=500, detail=f"Cache file missing: {cache_path}")
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        parsed = ParsedDocument(
+            stream=data["stream"],
+            paragraph_offsets=data["paragraph_offsets"],
+            date_headings=[DateHeading(**dh) for dh in data["date_headings"]],
+            murli_type=data["murli_type"],
+            source_path=data["source_path"],
+        )
         _parsed_cache[murli_key] = parsed
         return parsed
 
