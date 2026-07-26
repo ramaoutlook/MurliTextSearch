@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Literal
 import threading
 import json
+import gzip
 from docx_reader import ParsedDocument, DateHeading
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -49,10 +50,10 @@ def get_parsed_document(murli_key: str):
     with _cache_lock:
         if murli_key in _parsed_cache:
             return _parsed_cache[murli_key]
-        cache_path = os.path.join(DATA_DIR, f"{murli_key}_cache.json")
+        cache_path = os.path.join(DATA_DIR, f"{murli_key}_cache.json.gz")
         if not os.path.isfile(cache_path):
             raise HTTPException(status_code=500, detail=f"Cache file missing: {cache_path}")
-        with open(cache_path, "r", encoding="utf-8") as f:
+        with gzip.open(cache_path, "rt", encoding="utf-8") as f:
             data = json.load(f)
         parsed = ParsedDocument(
             stream=data["stream"],
